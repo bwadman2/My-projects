@@ -23,6 +23,7 @@
     .empty-state { grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #444; }
     .empty-state p { font-size: 0.95rem; line-height: 1.6; }
     footer { text-align: center; padding: 24px; color: #333; font-size: 0.8rem; border-top: 1px solid #1a1a1a; }
+    .section-title { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: #444; margin-bottom: 20px; }
   </style>
 </head>
 <body>
@@ -32,10 +33,39 @@
   </header>
   <div class="divider"></div>
   <main>
+    <p class="section-title">Projects</p>
     <div class="projects-grid">
-      <div class="empty-state">
-        <p>No projects yet. Add a card to get started.</p>
-      </div>
+
+      <!-- =====================================================
+           ADD YOUR PROJECTS BELOW
+           Copy one of these cards and update the fields:
+             - tag: category label (e.g. "Tool", "Game", "Art")
+             - h2: project name
+             - p: short description
+             - href: link to the project (or "#" if not deployed yet)
+           ===================================================== -->
+
+      <a class="project-card" href="#" target="_blank">
+        <span class="tag">Tool</span>
+        <h2>Project Name</h2>
+        <p>A short description of what this project does and why it's useful or interesting.</p>
+        <span class="arrow">View project →</span>
+      </a>
+
+      <a class="project-card" href="#" target="_blank">
+        <span class="tag">Game</span>
+        <h2>Another Project</h2>
+        <p>A short description of what this project does and why it's useful or interesting.</p>
+        <span class="arrow">View project →</span>
+      </a>
+
+      <a class="project-card" href="#" target="_blank">
+        <span class="tag">Art</span>
+        <h2>Creative Thing</h2>
+        <p>A short description of what this project does and why it's useful or interesting.</p>
+        <span class="arrow">View project →</span>
+      </a>
+
     </div>
   </main>
   <footer>Built with Claude</footer>
