@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Gender Analyzer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 32px 40px 24px;
+      border-bottom: 1px solid #1e1e1e;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    header h1 { font-size: 1.4rem; font-weight: 700; color: #fff; }
+    header p { font-size: 0.85rem; color: #555; margin-top: 2px; }
+
+    .back-link {
+      font-size: 0.8rem;
+      color: #555;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #aaa; }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px 60px;
+      gap: 36px;
+    }
+
+    /* ── Range Selector ───────────────────────────── */
+    .range-selector {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .range-btn {
+      padding: 9px 22px;
+      border-radius: 999px;
+      border: 1px solid #2e2e2e;
+      background: #1a1a1a;
+      color: #888;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      letter-spacing: 0.02em;
+    }
+    .range-btn:hover { border-color: #555; color: #ccc; }
+    .range-btn.active-masc  { background: #142038; border-color: #2e6bb0; color: #7ab8f5; }
+    .range-btn.active-femme { background: #2a1228; border-color: #a03a7a; color: #e080c0; }
+    .range-btn.active-andro { background: #1c1c14; border-color: #806020; color: #d4a040; }
+    .range-btn.active-custom { background: #181818; border-color: #504050; color: #c098c0; }
+
+    /* ── Main Meter ───────────────────────────────── */
+    .meter-wrapper {
+      display: flex;
+      gap: 40px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Frequency bar gauge */
+    .gauge-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gauge-label { font-size: 0.7rem; color: #444; letter-spacing: 0.08em; text-transform: uppercase; }
+
+    .gauge {
+      position: relative;
+      width: 60px;
+      height: 340px;
+      border-radius: 30px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      overflow: hidden;
+    }
+
+    /* Colored zones drawn on gauge */
+    .gauge-zones {
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Needle */
+    .gauge-needle {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: #fff;
+      border-radius: 2px;
+      box-shadow: 0 0 8px rgba(255,255,255,0.8);
+      transition: top 0.12s ease-out;
+      z-index: 10;
+    }
+
+    /* Hz scale labels beside gauge */
+    .gauge-scale {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 340px;
+      padding: 6px 0;
+    }
+
+    .scale-tick {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.65rem;
+      color: #444;
+    }
+    .scale-tick::before {
+      content: '';
+      display: block;
+      width: 8px;
+      height: 1px;
+      background: #333;
+    }
+
+    /* ── Status Orb ───────────────────────────────── */
+    .status-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .orb {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: #1e1e1e;
+      border: 2px solid #2a2a2a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+      position: relative;
+    }
+
+    .orb.in-range {
+      background: #0d2e0d;
+      border-color: #1a6b1a;
+      box-shadow: 0 0 40px rgba(30, 180, 30, 0.3), 0 0 80px rgba(30, 180, 30, 0.12);
+    }
+
+    .orb.out-of-range {
+      background: #2e0d0d;
+      border-color: #8b1a1a;
+      box-shadow: 0 0 40px rgba(220, 50, 50, 0.3), 0 0 80px rgba(220, 50, 50, 0.12);
+    }
+
+    .orb.inactive {
+      background: #141414;
+      border-color: #222;
+    }
+
+    .orb-hz {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .orb-label {
+      font-size: 0.7rem;
+      color: #555;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .orb-status {
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-top: 8px;
+      letter-spacing: 0.05em;
+    }
+
+    .orb.in-range .orb-status  { color: #4ec94e; }
+    .orb.out-of-range .orb-status { color: #e05050; }
+    .orb.inactive .orb-status  { color: #333; }
+
+    /* ── Mic Button ───────────────────────────────── */
+    .mic-btn {
+      padding: 12px 36px;
+      border-radius: 999px;
+      border: 1px solid #333;
+      background: #1e1e1e;
+      color: #ccc;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .mic-btn:hover { background: #282828; border-color: #555; }
+    .mic-btn.recording {
+      background: #2a0d0d;
+      border-color: #a03030;
+      color: #e08080;
+    }
+
+    .mic-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #555;
+    }
+    .mic-btn.recording .mic-dot {
+      background: #e05050;
+      animation: pulse-dot 1s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ── History Strip ────────────────────────────── */
+    .history-section {
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .history-label {
+      font-size: 0.7rem;
+      color: #444;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    canvas.history-canvas {
+      width: 100%;
+      height: 80px;
+      border-radius: 8px;
+      background: #131313;
+      border: 1px solid #1e1e1e;
+      display: block;
+    }
+
+    /* ── Custom Range Controls ────────────────────── */
+    .custom-controls {
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+      padding: 20px 24px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .custom-controls.visible { display: flex; }
+
+    .custom-controls label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+
+    .custom-controls .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: #9060b0;
+    }
+
+    .slider-val {
+      font-size: 0.8rem;
+      color: #aaa;
+      width: 56px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ── Info panel ───────────────────────────────── */
+    .info-section {
+      width: 100%;
+      max-width: 560px;
+      background: #131313;
+      border: 1px solid #1e1e1e;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .info-section h3 {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #444;
+      margin-bottom: 12px;
+    }
+
+    .range-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .range-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+    }
+
+    .range-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .range-row span { color: #666; }
+    .range-row strong { color: #aaa; }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #2a2a2a;
+      font-size: 0.78rem;
+      border-top: 1px solid #181818;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Voice Gender Analyzer</h1>
+    <p>Real-time pitch detection with gender range feedback</p>
+  </div>
+  <a class="back-link" href="../index.html">← All projects</a>
+</header>
+
+<main>
+
+  <!-- Range selector -->
+  <div class="range-selector">
+    <button class="range-btn active-masc" data-range="masc">Masculine</button>
+    <button class="range-btn" data-range="femme">Feminine</button>
+    <button class="range-btn" data-range="andro">Androgynous</button>
+    <button class="range-btn" data-range="custom">Custom</button>
+  </div>
+
+  <!-- Custom controls (shown when custom selected) -->
+  <div class="custom-controls" id="customControls">
+    <label>
+      Min frequency
+      <div class="slider-row">
+        <input type="range" id="customMin" min="50" max="400" value="85">
+        <span class="slider-val" id="customMinVal">85 Hz</span>
+      </div>
+    </label>
+    <label>
+      Max frequency
+      <div class="slider-row">
+        <input type="range" id="customMax" min="50" max="400" value="255">
+        <span class="slider-val" id="customMaxVal">255 Hz</span>
+      </div>
+    </label>
+  </div>
+
+  <!-- Meter + Orb -->
+  <div class="meter-wrapper">
+
+    <!-- Gauge -->
+    <div class="gauge-container">
+      <span class="gauge-label">Hz</span>
+      <div style="display:flex; align-items:stretch; gap:6px;">
+        <div class="gauge" id="gauge">
+          <canvas id="gaugeCanvas" width="60" height="340"></canvas>
+          <div class="gauge-needle" id="needle" style="top: 50%;"></div>
+        </div>
+        <div class="gauge-scale" id="gaugeScale"></div>
+      </div>
+    </div>
+
+    <!-- Status orb -->
+    <div class="status-section">
+      <div class="orb inactive" id="orb">
+        <span class="orb-hz" id="orbHz">–</span>
+        <span class="orb-label">Hz</span>
+        <span class="orb-status" id="orbStatus">Inactive</span>
+      </div>
+      <button class="mic-btn" id="micBtn">
+        <span class="mic-dot"></span>
+        Start Microphone
+      </button>
+    </div>
+
+  </div>
+
+  <!-- History canvas -->
+  <div class="history-section">
+    <div class="history-label">Pitch History</div>
+    <canvas class="history-canvas" id="historyCanvas"></canvas>
+  </div>
+
+  <!-- Reference ranges info -->
+  <div class="info-section">
+    <h3>Typical Speaking Ranges</h3>
+    <div class="range-rows">
+      <div class="range-row">
+        <div class="range-dot" style="background:#4a8fd4;"></div>
+        <span>Masculine</span>
+        <strong>85 – 165 Hz</strong>
+      </div>
+      <div class="range-row">
+        <div class="range-dot" style="background:#c060a0;"></div>
+        <span>Feminine</span>
+        <strong>165 – 265 Hz</strong>
+      </div>
+      <div class="range-row">
+        <div class="range-dot" style="background:#a08030;"></div>
+        <span>Androgynous / Overlap</span>
+        <strong>145 – 185 Hz</strong>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>Built with Claude · Uses Web Audio API · No audio is stored or transmitted</footer>
+
+<script>
+// ── Constants ──────────────────────────────────────────────────────────────
+const GAUGE_MIN_HZ = 50;
+const GAUGE_MAX_HZ = 400;
+const HISTORY_SECONDS = 8;
+
+const RANGES = {
+  masc:   { min: 85,  max: 165 },
+  femme:  { min: 165, max: 265 },
+  andro:  { min: 145, max: 185 },
+  custom: { min: 85,  max: 255 },
+};
+
+const ZONE_COLORS = {
+  masc:  'rgba(74, 143, 212, 0.22)',
+  femme: 'rgba(192, 96, 160, 0.22)',
+  andro: 'rgba(160, 128, 48, 0.22)',
+};
+
+// ── State ──────────────────────────────────────────────────────────────────
+let activeRange = 'masc';
+let audioCtx = null;
+let analyser = null;
+let source = null;
+let stream = null;
+let rafId = null;
+let recording = false;
+let historyData = []; // {hz, inRange, ts}
+
+// ── DOM refs ───────────────────────────────────────────────────────────────
+const micBtn       = document.getElementById('micBtn');
+const micDot       = micBtn.querySelector('.mic-dot');
+const orb          = document.getElementById('orb');
+const orbHz        = document.getElementById('orbHz');
+const orbStatus    = document.getElementById('orbStatus');
+const needle       = document.getElementById('needle');
+const gaugeCanvas  = document.getElementById('gaugeCanvas');
+const histCanvas   = document.getElementById('historyCanvas');
+const customCtrls  = document.getElementById('customControls');
+const customMin    = document.getElementById('customMin');
+const customMax    = document.getElementById('customMax');
+const customMinVal = document.getElementById('customMinVal');
+const customMaxVal = document.getElementById('customMaxVal');
+const rangeBtns    = document.querySelectorAll('.range-btn');
+
+const gCtx = gaugeCanvas.getContext('2d');
+const hCtx = histCanvas.getContext('2d');
+
+// ── Hz ↔ gauge position ────────────────────────────────────────────────────
+// gauge: top = high Hz, bottom = low Hz (natural pitch visualization)
+function hzToFrac(hz) {
+  // Returns 0 (bottom=low) to 1 (top=high)
+  // Use logarithmic scale so low-freq range isn't squished
+  const logMin = Math.log(GAUGE_MIN_HZ);
+  const logMax = Math.log(GAUGE_MAX_HZ);
+  const logHz  = Math.log(Math.max(GAUGE_MIN_HZ, Math.min(GAUGE_MAX_HZ, hz)));
+  return (logHz - logMin) / (logMax - logMin);
+}
+
+function fracToTop(frac, height) {
+  // frac=0 → bottom, frac=1 → top
+  return height * (1 - frac);
+}
+
+// ── Draw gauge ─────────────────────────────────────────────────────────────
+function drawGauge() {
+  const W = gaugeCanvas.width;
+  const H = gaugeCanvas.height;
+  gCtx.clearRect(0, 0, W, H);
+
+  // Background gradient (low=dark blue to high=dark pink)
+  const bg = gCtx.createLinearGradient(0, H, 0, 0);
+  bg.addColorStop(0,   'rgba(20,  40,  80,  0.6)');
+  bg.addColorStop(0.5, 'rgba(30,  20,  50,  0.6)');
+  bg.addColorStop(1,   'rgba(80,  20,  60,  0.6)');
+  gCtx.fillStyle = bg;
+  gCtx.fillRect(0, 0, W, H);
+
+  // Draw active zone highlight
+  const range = getCurrentRange();
+  const topFrac    = hzToFrac(range.max);
+  const bottomFrac = hzToFrac(range.min);
+  const yTop    = fracToTop(topFrac,    H);
+  const yBottom = fracToTop(bottomFrac, H);
+
+  const zoneColor = ZONE_COLORS[activeRange] || 'rgba(144, 96, 176, 0.25)';
+  gCtx.fillStyle = zoneColor;
+  gCtx.fillRect(0, yTop, W, yBottom - yTop);
+
+  // Zone border lines
+  gCtx.strokeStyle = 'rgba(255,255,255,0.15)';
+  gCtx.lineWidth = 1;
+  gCtx.beginPath();
+  gCtx.moveTo(0, yTop);    gCtx.lineTo(W, yTop);
+  gCtx.moveTo(0, yBottom); gCtx.lineTo(W, yBottom);
+  gCtx.stroke();
+}
+
+// ── Build scale ticks ──────────────────────────────────────────────────────
+function buildScale() {
+  const ticks = [50, 85, 100, 130, 165, 200, 265, 330, 400];
+  const scale = document.getElementById('gaugeScale');
+  scale.innerHTML = '';
+  const H = 340;
+  // We use absolute positioning relative to a container same height as gauge
+  scale.style.position = 'relative';
+  scale.style.height = H + 'px';
+  scale.style.width = '44px';
+
+  ticks.forEach(hz => {
+    const frac = hzToFrac(hz);
+    const top  = fracToTop(frac, H);
+    const el = document.createElement('div');
+    el.className = 'scale-tick';
+    el.style.position = 'absolute';
+    el.style.top = (top - 6) + 'px';
+    el.style.left = '0';
+    el.textContent = hz;
+    scale.appendChild(el);
+  });
+}
+
+// ── Pitch detection (autocorrelation) ─────────────────────────────────────
+function detectPitch(buf, sampleRate) {
+  const SIZE = buf.length;
+  const MAX  = Math.floor(SIZE / 2);
+
+  // RMS check
+  let rms = 0;
+  for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
+  rms = Math.sqrt(rms / SIZE);
+  if (rms < 0.008) return -1;
+
+  let bestOffset = -1;
+  let bestCorr   = 0;
+  let found      = false;
+  let lastCorr   = 1;
+  const corrs    = new Float32Array(MAX);
+
+  for (let offset = 0; offset < MAX; offset++) {
+    let corr = 0;
+    for (let i = 0; i < MAX; i++) {
+      corr += Math.abs(buf[i] - buf[i + offset]);
+    }
+    corr = 1 - corr / MAX;
+    corrs[offset] = corr;
+
+    if (corr > 0.9 && corr > lastCorr) {
+      found = true;
+      if (corr > bestCorr) { bestCorr = corr; bestOffset = offset; }
+    } else if (found) {
+      // parabolic interpolation for sub-sample accuracy
+      const c0 = corrs[bestOffset - 1] || 0;
+      const c1 = corrs[bestOffset];
+      const c2 = corrs[bestOffset + 1] || 0;
+      const shift = (c2 - c0) / (2 * (2 * c1 - c0 - c2)) || 0;
+      return sampleRate / (bestOffset + shift);
+    }
+    lastCorr = corr;
+  }
+
+  if (bestCorr > 0.01 && bestOffset > 0) {
+    return sampleRate / bestOffset;
+  }
+  return -1;
+}
+
+// ── Get current range ──────────────────────────────────────────────────────
+function getCurrentRange() {
+  if (activeRange === 'custom') {
+    return { min: parseInt(customMin.value), max: parseInt(customMax.value) };
+  }
+  return RANGES[activeRange];
+}
+
+// ── Update orb ────────────────────────────────────────────────────────────
+function updateOrb(hz) {
+  const range = getCurrentRange();
+  const inRange = hz >= range.min && hz <= range.max;
+
+  orbHz.textContent = hz > 0 ? Math.round(hz) : '–';
+
+  orb.classList.remove('inactive', 'in-range', 'out-of-range');
+  if (hz <= 0) {
+    orb.classList.add('inactive');
+    orbStatus.textContent = 'No signal';
+  } else if (inRange) {
+    orb.classList.add('in-range');
+    orbStatus.textContent = 'In range';
+  } else {
+    orb.classList.add('out-of-range');
+    const dir = hz < range.min ? `${Math.round(range.min - hz)} Hz too low` : `${Math.round(hz - range.max)} Hz too high`;
+    orbStatus.textContent = dir;
+  }
+
+  // Move needle
+  if (hz > 0) {
+    const frac = hzToFrac(hz);
+    const top  = fracToTop(frac, gaugeCanvas.height);
+    needle.style.top = top + 'px';
+    // Needle color
+    needle.style.background = inRange ? '#4ec94e' : '#e05050';
+    needle.style.boxShadow  = inRange
+      ? '0 0 8px rgba(78,201,78,0.9)'
+      : '0 0 8px rgba(224,80,80,0.9)';
+  }
+
+  return inRange;
+}
+
+// ── Draw history ───────────────────────────────────────────────────────────
+function drawHistory() {
+  const W = histCanvas.width;
+  const H = histCanvas.height;
+  hCtx.clearRect(0, 0, W, H);
+
+  const range = getCurrentRange();
+  const now   = performance.now();
+  const windowMs = HISTORY_SECONDS * 1000;
+
+  // Draw range band
+  const bandTop    = (1 - hzToFrac(range.max)) * H;
+  const bandBottom = (1 - hzToFrac(range.min)) * H;
+  hCtx.fillStyle = 'rgba(255,255,255,0.04)';
+  hCtx.fillRect(0, bandTop, W, bandBottom - bandTop);
+
+  // Draw lines at range boundaries
+  hCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+  hCtx.lineWidth = 1;
+  hCtx.beginPath();
+  hCtx.moveTo(0, bandTop);    hCtx.lineTo(W, bandTop);
+  hCtx.moveTo(0, bandBottom); hCtx.lineTo(W, bandBottom);
+  hCtx.stroke();
+
+  // Draw pitch line
+  if (historyData.length < 2) return;
+
+  hCtx.lineWidth = 2;
+  hCtx.lineJoin  = 'round';
+  hCtx.lineCap   = 'round';
+
+  let started = false;
+  let lastInRange = null;
+
+  for (let i = 0; i < historyData.length; i++) {
+    const d = historyData[i];
+    if (d.hz <= 0) { started = false; continue; }
+
+    const x = W - ((now - d.ts) / windowMs) * W;
+    const y = (1 - hzToFrac(d.hz)) * H;
+
+    if (!started) {
+      hCtx.beginPath();
+      hCtx.moveTo(x, y);
+      started = true;
+      lastInRange = d.inRange;
+    } else {
+      if (d.inRange !== lastInRange) {
+        hCtx.strokeStyle = lastInRange ? '#4ec94e' : '#e05050';
+        hCtx.stroke();
+        hCtx.beginPath();
+        hCtx.moveTo(x, y);
+        lastInRange = d.inRange;
+      } else {
+        hCtx.lineTo(x, y);
+      }
+    }
+  }
+  hCtx.strokeStyle = lastInRange ? '#4ec94e' : '#e05050';
+  hCtx.stroke();
+}
+
+// ── Analysis loop ──────────────────────────────────────────────────────────
+function analyse() {
+  if (!analyser) return;
+  const buf = new Float32Array(analyser.fftSize);
+  analyser.getFloatTimeDomainData(buf);
+
+  const hz = detectPitch(buf, audioCtx.sampleRate);
+  const inRange = updateOrb(hz);
+
+  // Append to history
+  const now = performance.now();
+  historyData.push({ hz, inRange, ts: now });
+  // Trim old data
+  const cutoff = now - HISTORY_SECONDS * 1000;
+  while (historyData.length && historyData[0].ts < cutoff) historyData.shift();
+
+  drawHistory();
+  rafId = requestAnimationFrame(analyse);
+}
+
+// ── Start / Stop mic ───────────────────────────────────────────────────────
+async function startMic() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.1;
+    source = audioCtx.createMediaStreamSource(stream);
+    source.connect(analyser);
+
+    recording = true;
+    micBtn.classList.add('recording');
+    micBtn.querySelector('span:last-child').textContent = 'Stop Microphone';
+
+    analyse();
+  } catch (err) {
+    alert('Microphone access denied or unavailable.\n\n' + err.message);
+  }
+}
+
+function stopMic() {
+  recording = false;
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  if (source) { source.disconnect(); source = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  if (stream)  { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  analyser = null;
+
+  micBtn.classList.remove('recording');
+  micBtn.querySelector('span:last-child').textContent = 'Start Microphone';
+
+  orb.classList.remove('in-range', 'out-of-range');
+  orb.classList.add('inactive');
+  orbHz.textContent = '–';
+  orbStatus.textContent = 'Inactive';
+  needle.style.top = '50%';
+  needle.style.background = '#fff';
+  needle.style.boxShadow = '0 0 8px rgba(255,255,255,0.8)';
+}
+
+micBtn.addEventListener('click', () => {
+  recording ? stopMic() : startMic();
+});
+
+// ── Range button logic ─────────────────────────────────────────────────────
+rangeBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    rangeBtns.forEach(b => b.className = 'range-btn');
+    const r = btn.dataset.range;
+    btn.classList.add(`active-${r}`);
+    activeRange = r;
+
+    customCtrls.classList.toggle('visible', r === 'custom');
+    drawGauge();
+  });
+});
+
+// ── Custom sliders ─────────────────────────────────────────────────────────
+customMin.addEventListener('input', () => {
+  let v = parseInt(customMin.value);
+  const maxV = parseInt(customMax.value);
+  if (v >= maxV) { v = maxV - 5; customMin.value = v; }
+  customMinVal.textContent = v + ' Hz';
+  drawGauge();
+});
+
+customMax.addEventListener('input', () => {
+  let v = parseInt(customMax.value);
+  const minV = parseInt(customMin.value);
+  if (v <= minV) { v = minV + 5; customMax.value = v; }
+  customMaxVal.textContent = v + ' Hz';
+  drawGauge();
+});
+
+// ── History canvas resize ──────────────────────────────────────────────────
+function resizeHistCanvas() {
+  const rect = histCanvas.getBoundingClientRect();
+  histCanvas.width  = rect.width  * window.devicePixelRatio;
+  histCanvas.height = rect.height * window.devicePixelRatio;
+  hCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+}
+
+window.addEventListener('resize', resizeHistCanvas);
+
+// ── Init ───────────────────────────────────────────────────────────────────
+drawGauge();
+buildScale();
+resizeHistCanvas();
+
+// Set first button active
+rangeBtns[0].classList.add('active-masc');
+</script>
+</body>
+</html>
