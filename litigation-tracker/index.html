@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Litigation Tracker</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --surface2: #222;
+      --border: #2a2a2a;
+      --border2: #333;
+      --text: #e8e8e8;
+      --muted: #777;
+      --muted2: #555;
+      --accent: #cc8b3c;
+      --accent-dim: rgba(204,139,60,0.12);
+      --accent-border: rgba(204,139,60,0.25);
+      --red: #e05c5c;
+      --red-dim: rgba(224,92,92,0.12);
+      --red-border: rgba(224,92,92,0.25);
+      --yellow: #d4a72c;
+      --yellow-dim: rgba(212,167,44,0.12);
+      --yellow-border: rgba(212,167,44,0.25);
+      --green: #5cad7c;
+      --green-dim: rgba(92,173,124,0.12);
+      --green-border: rgba(92,173,124,0.25);
+      --blue: #5c8de0;
+      --blue-dim: rgba(92,141,224,0.12);
+      --blue-border: rgba(92,141,224,0.25);
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Layout ── */
+    header { padding: 40px 40px 28px; max-width: 1200px; margin: 0 auto; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    header h1 { font-size: 2rem; font-weight: 700; color: #fff; }
+    header p { color: var(--muted); font-size: 0.9rem; margin-top: 4px; }
+    .divider { height: 1px; background: var(--border); max-width: 1200px; margin: 0 auto; }
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 40px 80px; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .toolbar input[type="text"] { flex: 1; min-width: 180px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-size: 0.88rem; outline: none; }
+    .toolbar input[type="text"]:focus { border-color: var(--border2); }
+    .toolbar select { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; color: var(--text); font-size: 0.88rem; outline: none; cursor: pointer; }
+    .toolbar select:focus { border-color: var(--border2); }
+
+    /* ── Buttons ── */
+    .btn { border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.88rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+    .btn:hover { opacity: 0.85; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--accent); color: #111; }
+    .btn-ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+    .btn-danger { background: var(--red-dim); border: 1px solid var(--red-border); color: var(--red); }
+    .btn-sm { padding: 5px 11px; font-size: 0.8rem; }
+
+    /* ── Case cards ── */
+    .cases-list { display: flex; flex-direction: column; gap: 14px; }
+    .empty-state { text-align: center; padding: 80px 20px; color: var(--muted2); }
+    .empty-state p { font-size: 0.95rem; line-height: 1.7; }
+
+    .case-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.15s; }
+    .case-card:hover { border-color: var(--border2); }
+
+    .case-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: 20px 22px 16px; cursor: pointer; }
+    .case-card-header-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+    .case-card-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .case-name { font-size: 1.05rem; font-weight: 600; color: #fff; }
+    .case-number { font-size: 0.8rem; color: var(--muted); }
+    .case-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+    .badge { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; border-radius: 4px; padding: 2px 8px; border: 1px solid; }
+    .badge-status-active     { color: var(--green);  background: var(--green-dim);  border-color: var(--green-border); }
+    .badge-status-settled    { color: var(--blue);   background: var(--blue-dim);   border-color: var(--blue-border); }
+    .badge-status-dismissed  { color: var(--muted);  background: var(--surface2);   border-color: var(--border); }
+    .badge-status-appeal     { color: var(--yellow); background: var(--yellow-dim); border-color: var(--yellow-border); }
+    .badge-priority-high     { color: var(--red);    background: var(--red-dim);    border-color: var(--red-border); }
+    .badge-priority-medium   { color: var(--yellow); background: var(--yellow-dim); border-color: var(--yellow-border); }
+    .badge-priority-low      { color: var(--muted);  background: var(--surface2);   border-color: var(--border); }
+
+    .case-card-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .case-card-body { padding: 0 22px 20px; display: none; border-top: 1px solid var(--border); margin-top: 4px; }
+    .case-card-body.open { display: block; padding-top: 18px; }
+
+    .detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .detail-item label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted2); display: block; margin-bottom: 3px; }
+    .detail-item span { font-size: 0.9rem; color: var(--text); }
+    .detail-item span.liability { color: var(--red); font-weight: 600; }
+    .detail-item span.coverage { color: var(--green); font-weight: 600; }
+
+    .section-label { font-size: 0.7rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2); margin-bottom: 10px; margin-top: 18px; }
+
+    /* ── Deadlines ── */
+    .deadlines-list { display: flex; flex-direction: column; gap: 7px; }
+    .deadline-item { display: flex; align-items: center; gap: 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 14px; }
+    .deadline-item.overdue  { border-color: var(--red-border);    background: var(--red-dim); }
+    .deadline-item.soon     { border-color: var(--yellow-border);  background: var(--yellow-dim); }
+    .deadline-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: var(--muted2); }
+    .deadline-item.overdue .deadline-dot { background: var(--red); }
+    .deadline-item.soon    .deadline-dot { background: var(--yellow); }
+    .deadline-type { font-size: 0.75rem; font-weight: 600; color: var(--muted); width: 130px; flex-shrink: 0; }
+    .deadline-date { font-size: 0.85rem; font-weight: 600; color: var(--text); width: 100px; flex-shrink: 0; }
+    .deadline-item.overdue .deadline-date { color: var(--red); }
+    .deadline-item.soon    .deadline-date { color: var(--yellow); }
+    .deadline-desc { font-size: 0.85rem; color: var(--muted); flex: 1; }
+    .deadline-tag { font-size: 0.68rem; margin-left: auto; flex-shrink: 0; }
+
+    /* ── Notes ── */
+    .notes-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 0.88rem; color: var(--muted); line-height: 1.7; white-space: pre-wrap; }
+
+    /* ── Upcoming deadlines panel ── */
+    .upcoming-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 28px; }
+    .upcoming-panel h2 { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted2); margin-bottom: 14px; }
+    .upcoming-list { display: flex; flex-direction: column; gap: 7px; }
+    .upcoming-none { font-size: 0.88rem; color: var(--muted2); }
+
+    /* ── Modal ── */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: flex-start; justify-content: center; z-index: 100; padding: 40px 16px; overflow-y: auto; }
+    .modal-overlay.hidden { display: none; }
+    .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: 14px; width: 100%; max-width: 720px; padding: 32px; display: flex; flex-direction: column; gap: 22px; }
+    .modal h2 { font-size: 1.2rem; font-weight: 700; color: #fff; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .form-grid.cols3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group.full { grid-column: 1 / -1; }
+    .form-group label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); }
+    .form-group input, .form-group select, .form-group textarea {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+      padding: 9px 13px; color: var(--text); font-size: 0.9rem; outline: none; font-family: inherit;
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--accent); }
+    .form-group textarea { resize: vertical; min-height: 80px; }
+    .form-group select option { background: #222; }
+
+    /* ── Deadline rows in form ── */
+    .deadlines-editor { display: flex; flex-direction: column; gap: 8px; }
+    .deadline-row { display: grid; grid-template-columns: 140px 140px 1fr auto; gap: 8px; align-items: center; }
+    .deadline-row input, .deadline-row select { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; color: var(--text); font-size: 0.85rem; outline: none; font-family: inherit; }
+    .deadline-row input:focus, .deadline-row select:focus { border-color: var(--accent); }
+    .deadline-row input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(0.5); cursor: pointer; }
+    .btn-remove-deadline { background: none; border: none; color: var(--muted2); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
+    .btn-remove-deadline:hover { color: var(--red); background: var(--red-dim); }
+
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; border-top: 1px solid var(--border); }
+
+    footer { text-align: center; padding: 24px; color: #333; font-size: 0.8rem; border-top: 1px solid #1a1a1a; }
+
+    @media (max-width: 600px) {
+      header, main { padding-left: 20px; padding-right: 20px; }
+      .form-grid, .form-grid.cols3 { grid-template-columns: 1fr; }
+      .deadline-row { grid-template-columns: 1fr 1fr; }
+      .deadline-row input[placeholder="Description"] { grid-column: 1 / -1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Litigation Tracker</h1>
+    <p>Track cases, deadlines, liability, and notes in one place.</p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal()">+ New Case</button>
+</header>
+<div class="divider"></div>
+
+<main>
+  <!-- Upcoming Deadlines Panel -->
+  <div class="upcoming-panel" id="upcomingPanel">
+    <h2>Upcoming Deadlines (next 30 days)</h2>
+    <div class="upcoming-list" id="upcomingList"><span class="upcoming-none">No upcoming deadlines.</span></div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="Search cases..." oninput="renderCases()">
+    <select id="filterStatus" onchange="renderCases()">
+      <option value="">All Statuses</option>
+      <option value="active">Active</option>
+      <option value="settled">Settled</option>
+      <option value="dismissed">Dismissed</option>
+      <option value="appeal">On Appeal</option>
+    </select>
+    <select id="filterPriority" onchange="renderCases()">
+      <option value="">All Priorities</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <select id="sortBy" onchange="renderCases()">
+      <option value="newest">Newest First</option>
+      <option value="oldest">Oldest First</option>
+      <option value="name">Name A–Z</option>
+      <option value="priority">Priority</option>
+      <option value="deadline">Next Deadline</option>
+    </select>
+  </div>
+
+  <div class="cases-list" id="casesList"></div>
+</main>
+
+<!-- Modal -->
+<div class="modal-overlay hidden" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <h2 id="modalTitle">New Case</h2>
+
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Case / Action Name *</label>
+        <input type="text" id="f-name" placeholder="e.g. Smith v. Acme Corp.">
+      </div>
+      <div class="form-group">
+        <label>Case Number</label>
+        <input type="text" id="f-number" placeholder="e.g. 2024-CV-04512">
+      </div>
+      <div class="form-group">
+        <label>Court / Jurisdiction</label>
+        <input type="text" id="f-court" placeholder="e.g. SDNY, Superior Court LA">
+      </div>
+      <div class="form-group">
+        <label>Date Filed</label>
+        <input type="date" id="f-filed">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="active">Active</option>
+          <option value="settled">Settled</option>
+          <option value="dismissed">Dismissed</option>
+          <option value="appeal">On Appeal</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Priority</label>
+        <select id="f-priority">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Opposing Party</label>
+        <input type="text" id="f-opposing-party" placeholder="e.g. Acme Corp.">
+      </div>
+      <div class="form-group">
+        <label>Opposing Counsel</label>
+        <input type="text" id="f-opposing-counsel" placeholder="Attorney name / firm">
+      </div>
+      <div class="form-group">
+        <label>Assigned Attorney</label>
+        <input type="text" id="f-attorney" placeholder="Internal attorney">
+      </div>
+      <div class="form-group">
+        <label>Assigned Paralegal / Staff</label>
+        <input type="text" id="f-paralegal" placeholder="Supporting staff">
+      </div>
+      <div class="form-group">
+        <label>Potential Liability ($)</label>
+        <input type="number" id="f-liability" placeholder="0" min="0">
+      </div>
+      <div class="form-group">
+        <label>Insurance Coverage ($)</label>
+        <input type="number" id="f-coverage" placeholder="0" min="0">
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Deadlines</div>
+      <div class="deadlines-editor" id="deadlinesEditor"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="addDeadlineRow()">+ Add Deadline</button>
+    </div>
+
+    <div class="form-group">
+      <label>Notes</label>
+      <textarea id="f-notes" rows="4" placeholder="Key facts, strategy notes, important history..."></textarea>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCase()">Save Case</button>
+    </div>
+  </div>
+</div>
+
+<footer>Built with Claude</footer>
+
+<script>
+  // ── Data ──────────────────────────────────────────────────────────────────
+  let cases = JSON.parse(localStorage.getItem('litigationCases') || '[]');
+  let editingId = null;
+
+  function save() {
+    localStorage.setItem('litigationCases', JSON.stringify(cases));
+  }
+
+  function genId() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  // ── Date helpers ─────────────────────────────────────────────────────────
+  function today() {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    const now = new Date(); now.setHours(0,0,0,0);
+    const d = new Date(dateStr + 'T00:00:00');
+    return Math.round((d - now) / 86400000);
+  }
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function formatMoney(val) {
+    if (!val && val !== 0) return '—';
+    const n = parseFloat(val);
+    if (isNaN(n)) return '—';
+    return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function deadlineClass(dateStr) {
+    const d = daysUntil(dateStr);
+    if (d === null) return '';
+    if (d < 0) return 'overdue';
+    if (d <= 14) return 'soon';
+    return '';
+  }
+
+  function deadlineLabel(dateStr) {
+    const d = daysUntil(dateStr);
+    if (d === null) return '';
+    if (d < 0) return `${Math.abs(d)}d overdue`;
+    if (d === 0) return 'Today';
+    if (d === 1) return 'Tomorrow';
+    return `${d}d away`;
+  }
+
+  function nextDeadline(c) {
+    if (!c.deadlines || !c.deadlines.length) return null;
+    const future = c.deadlines.filter(d => d.date && daysUntil(d.date) >= 0).sort((a,b) => a.date.localeCompare(b.date));
+    return future.length ? future[0].date : null;
+  }
+
+  // ── Rendering ─────────────────────────────────────────────────────────────
+  const statusLabel = { active: 'Active', settled: 'Settled', dismissed: 'Dismissed', appeal: 'On Appeal' };
+  const priorityLabel = { high: 'High', medium: 'Medium', low: 'Low' };
+  const deadlineTypes = ['Motion Due', 'Hearing', 'Trial Date', 'Discovery Cutoff', 'Mediation', 'Deposition', 'Response Due', 'Appeal Deadline', 'Settlement Conference', 'Other'];
+
+  function renderCases() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const statusF = document.getElementById('filterStatus').value;
+    const priorityF = document.getElementById('filterPriority').value;
+    const sortBy = document.getElementById('sortBy').value;
+
+    let filtered = cases.filter(c => {
+      const hay = [c.name, c.number, c.court, c.opposingParty, c.opposingCounsel, c.attorney, c.notes].join(' ').toLowerCase();
+      return (!query || hay.includes(query)) &&
+             (!statusF || c.status === statusF) &&
+             (!priorityF || c.priority === priorityF);
+    });
+
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    if (sortBy === 'oldest') filtered.sort((a,b) => a.createdAt - b.createdAt);
+    else if (sortBy === 'name') filtered.sort((a,b) => a.name.localeCompare(b.name));
+    else if (sortBy === 'priority') filtered.sort((a,b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+    else if (sortBy === 'deadline') filtered.sort((a,b) => {
+      const da = nextDeadline(a), db = nextDeadline(b);
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da.localeCompare(db);
+    });
+    else filtered.sort((a,b) => b.createdAt - a.createdAt); // newest
+
+    const el = document.getElementById('casesList');
+    if (!filtered.length) {
+      el.innerHTML = `<div class="empty-state"><p>${cases.length ? 'No cases match your filters.' : 'No cases yet.<br>Click <strong>+ New Case</strong> to add your first one.'}</p></div>`;
+    } else {
+      el.innerHTML = filtered.map(renderCard).join('');
+    }
+
+    renderUpcoming();
+  }
+
+  function renderCard(c) {
+    const hasDeadlines = c.deadlines && c.deadlines.length;
+    const deadlineHTML = hasDeadlines
+      ? c.deadlines.slice().sort((a,b) => (a.date||'').localeCompare(b.date||'')).map(d => `
+          <div class="deadline-item ${deadlineClass(d.date)}">
+            <div class="deadline-dot"></div>
+            <span class="deadline-type">${d.type || 'Deadline'}</span>
+            <span class="deadline-date">${formatDate(d.date)}</span>
+            <span class="deadline-desc">${d.desc || ''}</span>
+            ${d.date ? `<span class="badge deadline-tag ${deadlineClass(d.date) === 'overdue' ? 'badge-priority-high' : deadlineClass(d.date) === 'soon' ? 'badge-priority-medium' : 'badge-status-dismissed'}">${deadlineLabel(d.date)}</span>` : ''}
+          </div>`).join('')
+      : '<span style="color:var(--muted2);font-size:0.85rem;">No deadlines recorded.</span>';
+
+    const exposeNet = () => {
+      const l = parseFloat(c.liability) || 0;
+      const cv = parseFloat(c.coverage) || 0;
+      const net = l - cv;
+      if (!l && !cv) return '';
+      return `<div class="detail-item"><label>Net Exposure</label><span class="${net > 0 ? 'liability' : 'coverage'}">${formatMoney(net)}</span></div>`;
+    };
+
+    return `
+    <div class="case-card" id="card-${c.id}">
+      <div class="case-card-header" onclick="toggleCard('${c.id}')">
+        <div class="case-card-header-left">
+          <div class="case-card-title-row">
+            <span class="case-name">${esc(c.name)}</span>
+            ${c.number ? `<span class="case-number">${esc(c.number)}</span>` : ''}
+          </div>
+          <div class="case-meta">
+            <span class="badge badge-status-${c.status}">${statusLabel[c.status]}</span>
+            <span class="badge badge-priority-${c.priority}">${priorityLabel[c.priority]} Priority</span>
+            ${c.court ? `<span style="font-size:0.8rem;color:var(--muted)">${esc(c.court)}</span>` : ''}
+            ${nextDeadline(c) ? `<span style="font-size:0.8rem;color:var(--muted)">Next deadline: <strong style="color:var(--text)">${formatDate(nextDeadline(c))}</strong></span>` : ''}
+          </div>
+        </div>
+        <div class="case-card-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" onclick="openModal('${c.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteCase('${c.id}')">Delete</button>
+        </div>
+      </div>
+      <div class="case-card-body" id="body-${c.id}">
+        <div class="detail-grid">
+          <div class="detail-item"><label>Opposing Party</label><span>${esc(c.opposingParty) || '—'}</span></div>
+          <div class="detail-item"><label>Opposing Counsel</label><span>${esc(c.opposingCounsel) || '—'}</span></div>
+          <div class="detail-item"><label>Assigned Attorney</label><span>${esc(c.attorney) || '—'}</span></div>
+          <div class="detail-item"><label>Paralegal / Staff</label><span>${esc(c.paralegal) || '—'}</span></div>
+          <div class="detail-item"><label>Date Filed</label><span>${formatDate(c.filed)}</span></div>
+          <div class="detail-item"><label>Potential Liability</label><span class="liability">${formatMoney(c.liability)}</span></div>
+          <div class="detail-item"><label>Insurance Coverage</label><span class="coverage">${formatMoney(c.coverage)}</span></div>
+          ${exposeNet()}
+        </div>
+        <div class="section-label">Deadlines</div>
+        <div class="deadlines-list">${deadlineHTML}</div>
+        ${c.notes ? `<div class="section-label" style="margin-top:18px">Notes</div><div class="notes-box">${esc(c.notes)}</div>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function toggleCard(id) {
+    const body = document.getElementById(`body-${id}`);
+    body.classList.toggle('open');
+  }
+
+  function renderUpcoming() {
+    const today30 = new Date(); today30.setDate(today30.getDate() + 30);
+    const t30str = today30.toISOString().slice(0,10);
+    const todayStr = today();
+    const items = [];
+    cases.forEach(c => {
+      (c.deadlines || []).forEach(d => {
+        if (d.date && d.date >= todayStr && d.date <= t30str) {
+          items.push({ case: c, deadline: d });
+        }
+      });
+    });
+    items.sort((a,b) => a.deadline.date.localeCompare(b.deadline.date));
+    const el = document.getElementById('upcomingList');
+    if (!items.length) {
+      el.innerHTML = '<span class="upcoming-none">No deadlines in the next 30 days.</span>';
+    } else {
+      el.innerHTML = items.map(i => `
+        <div class="deadline-item ${deadlineClass(i.deadline.date)}">
+          <div class="deadline-dot"></div>
+          <span class="deadline-type">${i.deadline.type || 'Deadline'}</span>
+          <span class="deadline-date">${formatDate(i.deadline.date)}</span>
+          <span class="deadline-desc"><strong>${esc(i.case.name)}</strong>${i.deadline.desc ? ' — ' + esc(i.deadline.desc) : ''}</span>
+          <span class="badge deadline-tag ${deadlineClass(i.deadline.date) === 'soon' ? 'badge-priority-medium' : 'badge-status-dismissed'}">${deadlineLabel(i.deadline.date)}</span>
+        </div>`).join('');
+    }
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────
+  function openModal(id) {
+    editingId = id || null;
+    document.getElementById('modalTitle').textContent = id ? 'Edit Case' : 'New Case';
+    const c = id ? cases.find(x => x.id === id) : null;
+
+    document.getElementById('f-name').value = c?.name || '';
+    document.getElementById('f-number').value = c?.number || '';
+    document.getElementById('f-court').value = c?.court || '';
+    document.getElementById('f-filed').value = c?.filed || '';
+    document.getElementById('f-status').value = c?.status || 'active';
+    document.getElementById('f-priority').value = c?.priority || 'medium';
+    document.getElementById('f-opposing-party').value = c?.opposingParty || '';
+    document.getElementById('f-opposing-counsel').value = c?.opposingCounsel || '';
+    document.getElementById('f-attorney').value = c?.attorney || '';
+    document.getElementById('f-paralegal').value = c?.paralegal || '';
+    document.getElementById('f-liability').value = c?.liability || '';
+    document.getElementById('f-coverage').value = c?.coverage || '';
+    document.getElementById('f-notes').value = c?.notes || '';
+
+    const editor = document.getElementById('deadlinesEditor');
+    editor.innerHTML = '';
+    if (c?.deadlines?.length) {
+      c.deadlines.forEach(d => addDeadlineRow(d));
+    } else {
+      addDeadlineRow();
+    }
+
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    document.getElementById('f-name').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.add('hidden');
+    editingId = null;
+  }
+
+  function overlayClick(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function addDeadlineRow(d) {
+    const row = document.createElement('div');
+    row.className = 'deadline-row';
+    row.innerHTML = `
+      <select>
+        ${deadlineTypes.map(t => `<option ${d?.type === t ? 'selected' : ''}>${t}</option>`).join('')}
+      </select>
+      <input type="date" value="${d?.date || ''}">
+      <input type="text" placeholder="Description" value="${esc(d?.desc || '')}">
+      <button class="btn-remove-deadline" onclick="this.closest('.deadline-row').remove()" title="Remove">×</button>`;
+    document.getElementById('deadlinesEditor').appendChild(row);
+  }
+
+  function saveCase() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { document.getElementById('f-name').focus(); return; }
+
+    const deadlines = Array.from(document.querySelectorAll('#deadlinesEditor .deadline-row')).map(row => {
+      const [typeEl, dateEl, descEl] = row.querySelectorAll('select, input[type=date], input[type=text]');
+      return { type: typeEl.value, date: dateEl.value, desc: descEl.value.trim() };
+    }).filter(d => d.date || d.desc);
+
+    const data = {
+      name,
+      number:         document.getElementById('f-number').value.trim(),
+      court:          document.getElementById('f-court').value.trim(),
+      filed:          document.getElementById('f-filed').value,
+      status:         document.getElementById('f-status').value,
+      priority:       document.getElementById('f-priority').value,
+      opposingParty:  document.getElementById('f-opposing-party').value.trim(),
+      opposingCounsel:document.getElementById('f-opposing-counsel').value.trim(),
+      attorney:       document.getElementById('f-attorney').value.trim(),
+      paralegal:      document.getElementById('f-paralegal').value.trim(),
+      liability:      document.getElementById('f-liability').value,
+      coverage:       document.getElementById('f-coverage').value,
+      notes:          document.getElementById('f-notes').value.trim(),
+      deadlines,
+    };
+
+    if (editingId) {
+      const idx = cases.findIndex(c => c.id === editingId);
+      cases[idx] = { ...cases[idx], ...data };
+    } else {
+      cases.unshift({ id: genId(), createdAt: Date.now(), ...data });
+    }
+
+    save();
+    closeModal();
+    renderCases();
+  }
+
+  function deleteCase(id) {
+    const c = cases.find(x => x.id === id);
+    if (!confirm(`Delete "${c.name}"? This cannot be undone.`)) return;
+    cases = cases.filter(x => x.id !== id);
+    save();
+    renderCases();
+  }
+
+  // ── Utils ─────────────────────────────────────────────────────────────────
+  function esc(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  renderCases();
+</script>
+</body>
+</html>
