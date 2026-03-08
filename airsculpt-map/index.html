@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirSculpt Clinic Map</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #e8e8e8;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      padding: 14px 24px;
+      background: #141414;
+      border-bottom: 1px solid #2a2a2a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+      z-index: 1000;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .back-link {
+      color: #555;
+      text-decoration: none;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #aaa; }
+
+    .header-divider {
+      width: 1px;
+      height: 20px;
+      background: #2a2a2a;
+    }
+
+    header h1 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+    }
+    header p {
+      font-size: 0.8rem;
+      color: #555;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-label {
+      font-size: 0.75rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .filter-btn {
+      background: #1e1e1e;
+      border: 1px solid #2a2a2a;
+      color: #aaa;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .filter-btn:hover { border-color: #444; color: #ddd; }
+    .filter-btn.active {
+      background: #cc8b3c;
+      border-color: #cc8b3c;
+      color: #fff;
+    }
+
+    .stat-chip {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      color: #666;
+    }
+    .stat-chip span { color: #cc8b3c; font-weight: 600; }
+
+    .main-layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 300px;
+      background: #111;
+      border-right: 1px solid #1f1f1f;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    .sidebar-header {
+      padding: 16px;
+      border-bottom: 1px solid #1f1f1f;
+    }
+
+    .search-box {
+      width: 100%;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 9px 12px 9px 32px;
+      color: #e8e8e8;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23555' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: 10px center;
+    }
+    .search-box:focus { border-color: #444; }
+    .search-box::placeholder { color: #444; }
+
+    .clinic-list {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #2a2a2a #111;
+    }
+
+    .clinic-item {
+      padding: 12px 16px;
+      border-bottom: 1px solid #1a1a1a;
+      cursor: pointer;
+      transition: background 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .clinic-item:hover { background: #181818; }
+    .clinic-item.highlighted { background: #1e1a14; }
+
+    .clinic-pin {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #fff;
+      letter-spacing: -0.02em;
+    }
+
+    .clinic-info { flex: 1; min-width: 0; }
+    .clinic-name {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #e8e8e8;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .clinic-location {
+      font-size: 0.75rem;
+      color: #555;
+      margin-top: 1px;
+    }
+
+    .clinic-rating-badge {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .star-icon { font-size: 0.7rem; }
+
+    .clinic-count {
+      padding: 10px 16px;
+      font-size: 0.75rem;
+      color: #444;
+      border-top: 1px solid #1a1a1a;
+      flex-shrink: 0;
+    }
+
+    /* Map */
+    #map {
+      flex: 1;
+      background: #1a1a1a;
+    }
+
+    /* Legend */
+    .map-legend {
+      position: absolute;
+      bottom: 24px;
+      right: 12px;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 14px 16px;
+      z-index: 900;
+      min-width: 160px;
+    }
+
+    .legend-title {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 7px;
+      font-size: 0.8rem;
+      color: #aaa;
+    }
+    .legend-item:last-child { margin-bottom: 0; }
+
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    /* Popup styles */
+    .leaflet-popup-content-wrapper {
+      background: #1a1a1a !important;
+      border: 1px solid #2a2a2a !important;
+      border-radius: 10px !important;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6) !important;
+      padding: 0 !important;
+    }
+    .leaflet-popup-content {
+      margin: 0 !important;
+      min-width: 220px;
+    }
+    .leaflet-popup-tip-container { display: none; }
+    .leaflet-popup-close-button {
+      color: #555 !important;
+      font-size: 18px !important;
+      top: 10px !important;
+      right: 12px !important;
+    }
+    .leaflet-popup-close-button:hover { color: #aaa !important; }
+
+    .popup-content {
+      padding: 18px 20px 16px;
+    }
+    .popup-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .popup-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+    }
+    .popup-title { flex: 1; }
+    .popup-name {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .popup-city {
+      font-size: 0.78rem;
+      color: #555;
+      margin-top: 2px;
+    }
+    .popup-stars {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .stars-visual {
+      display: flex;
+      gap: 2px;
+    }
+    .star-filled { color: #f4b942; font-size: 14px; }
+    .star-half { color: #f4b942; font-size: 14px; opacity: 0.6; }
+    .star-empty { color: #333; font-size: 14px; }
+    .popup-rating-num {
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #f4b942;
+    }
+    .popup-rating-label {
+      font-size: 0.75rem;
+      color: #555;
+    }
+    .popup-address {
+      font-size: 0.78rem;
+      color: #666;
+      line-height: 1.5;
+      padding-top: 10px;
+      border-top: 1px solid #222;
+    }
+    .popup-address-icon {
+      margin-right: 4px;
+      color: #444;
+    }
+    .popup-btn {
+      display: block;
+      margin-top: 12px;
+      background: #cc8b3c;
+      color: #fff;
+      text-decoration: none;
+      text-align: center;
+      padding: 8px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    .popup-btn:hover { background: #b87a30; }
+
+    /* Canada label */
+    .canada-badge {
+      background: #1a2a1a;
+      border: 1px solid #2a3a2a;
+      color: #5a9a5a;
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-top: 3px;
+      display: inline-block;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 700px) {
+      .sidebar { width: 100%; position: absolute; bottom: 0; height: 40vh; z-index: 800; border-right: none; border-top: 1px solid #1f1f1f; }
+      .main-layout { flex-direction: column; }
+      #map { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <a href="../index.html" class="back-link">← Back</a>
+    <div class="header-divider"></div>
+    <div>
+      <h1>AirSculpt Clinic Map</h1>
+      <p>US &amp; Canada · Google Ratings</p>
+    </div>
+  </div>
+  <div class="header-controls">
+    <div class="filter-group">
+      <span class="filter-label">Filter</span>
+      <button class="filter-btn active" data-min="0">All</button>
+      <button class="filter-btn" data-min="4.8">4.8+</button>
+      <button class="filter-btn" data-min="4.9">4.9+</button>
+    </div>
+    <div class="stat-chip">
+      <span id="visible-count">31</span> clinics
+    </div>
+  </div>
+</header>
+
+<div class="main-layout">
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <input type="text" class="search-box" id="search-input" placeholder="Search clinics…">
+    </div>
+    <div class="clinic-list" id="clinic-list"></div>
+    <div class="clinic-count" id="clinic-count">Showing all 31 locations</div>
+  </div>
+  <div style="position:relative;flex:1;">
+    <div id="map"></div>
+    <div class="map-legend">
+      <div class="legend-title">Google Rating</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>5.0 Stars</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#84cc16"></div>4.9 Stars</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#eab308"></div>4.8 Stars</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>4.7 Stars</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>4.6 Stars</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Clinic Data ────────────────────────────────────────────────────────────────
+const clinics = [
+  {
+    id: 1,
+    name: "AirSculpt Beverly Hills",
+    city: "Beverly Hills",
+    state: "CA",
+    country: "US",
+    address: "448B Bedford Dr, Beverly Hills, CA 90210",
+    lat: 34.0708,
+    lng: -118.4043,
+    rating: 4.8,
+    reviews: 579,
+    url: "https://airsculpt.com/our-locations/beverly-hills/"
+  },
+  {
+    id: 2,
+    name: "AirSculpt Houston",
+    city: "Houston",
+    state: "TX",
+    country: "US",
+    address: "7400 Fannin St, Suite 1280, Houston, TX 77054",
+    lat: 29.7270,
+    lng: -95.3975,
+    rating: 4.8,
+    reviews: 210,
+    url: "https://airsculpt.com/our-locations/houston/"
+  },
+  {
+    id: 3,
+    name: "AirSculpt New York City",
+    city: "New York",
+    state: "NY",
+    country: "US",
+    address: "4 W 58th St, Floor 11, New York, NY 10019",
+    lat: 40.7641,
+    lng: -73.9739,
+    rating: 4.7,
+    reviews: 77,
+    url: "https://airsculpt.com/our-locations/new-york/"
+  },
+  {
+    id: 4,
+    name: "AirSculpt Chicago",
+    city: "Chicago",
+    state: "IL",
+    country: "US",
+    address: "60 E Delaware Pl, Suite 1400, Chicago, IL 60611",
+    lat: 41.8975,
+    lng: -87.6244,
+    rating: 4.9,
+    reviews: 185,
+    url: "https://airsculpt.com/our-locations/chicago/"
+  },
+  {
+    id: 5,
+    name: "AirSculpt Dallas",
+    city: "Dallas",
+    state: "TX",
+    country: "US",
+    address: "500 Crescent Court #138, Dallas, TX 75201",
+    lat: 32.7934,
+    lng: -96.8003,
+    rating: 4.8,
+    reviews: 51,
+    url: "https://airsculpt.com/our-locations/dallas/"
+  },
+  {
+    id: 6,
+    name: "AirSculpt Atlanta",
+    city: "Atlanta",
+    state: "GA",
+    country: "US",
+    address: "3391 Peachtree Rd NE #100, Atlanta, GA 30326",
+    lat: 33.8485,
+    lng: -84.3653,
+    rating: 4.9,
+    reviews: 162,
+    url: "https://airsculpt.com/our-locations/atlanta/"
+  },
+  {
+    id: 7,
+    name: "AirSculpt Nashville",
+    city: "Nashville",
+    state: "TN",
+    country: "US",
+    address: "3807 Cleghorn Ave, Suite 901, Nashville, TN 37215",
+    lat: 36.1166,
+    lng: -86.8208,
+    rating: 4.8,
+    reviews: 93,
+    url: "https://airsculpt.com/our-locations/nashville/"
+  },
+  {
+    id: 8,
+    name: "AirSculpt Seattle (Bellevue)",
+    city: "Bellevue",
+    state: "WA",
+    country: "US",
+    address: "500 108th Ave NE, Suite 1F2, Bellevue, WA 98004",
+    lat: 47.6162,
+    lng: -122.1938,
+    rating: 4.8,
+    reviews: 74,
+    url: "https://airsculpt.com/our-locations/seattle/"
+  },
+  {
+    id: 9,
+    name: "AirSculpt Washington D.C.",
+    city: "Vienna",
+    state: "VA",
+    country: "US",
+    address: "1919 Gallows Rd, Suite 130, Vienna, VA 22182",
+    lat: 38.9009,
+    lng: -77.2597,
+    rating: 4.7,
+    reviews: 55,
+    url: "https://airsculpt.com/our-locations/washington-dc/"
+  },
+  {
+    id: 10,
+    name: "AirSculpt Denver",
+    city: "Denver",
+    state: "CO",
+    country: "US",
+    address: "157 Steele St, Unit 100, Denver, CO 80206",
+    lat: 39.7254,
+    lng: -104.9578,
+    rating: 4.8,
+    reviews: 108,
+    url: "https://airsculpt.com/our-locations/denver/"
+  },
+  {
+    id: 11,
+    name: "AirSculpt Minneapolis (Edina)",
+    city: "Edina",
+    state: "MN",
+    country: "US",
+    address: "7701 France Ave S, Suite 425, Edina, MN 55435",
+    lat: 44.8858,
+    lng: -93.3486,
+    rating: 4.7,
+    reviews: 14,
+    url: "https://airsculpt.com/our-locations/minneapolis/"
+  },
+  {
+    id: 12,
+    name: "AirSculpt Scottsdale",
+    city: "Scottsdale",
+    state: "AZ",
+    country: "US",
+    address: "9500 E Ironwood Square Dr, Suite 206, Scottsdale, AZ 85258",
+    lat: 33.5810,
+    lng: -111.8979,
+    rating: 4.9,
+    reviews: 77,
+    url: "https://airsculpt.com/our-locations/scottsdale/"
+  },
+  {
+    id: 13,
+    name: "AirSculpt Miami",
+    city: "Miami",
+    state: "FL",
+    country: "US",
+    address: "Miami, FL",
+    lat: 25.7617,
+    lng: -80.1918,
+    rating: 4.7,
+    reviews: 143,
+    url: "https://airsculpt.com/our-locations/miami/"
+  },
+  {
+    id: 14,
+    name: "AirSculpt Boston",
+    city: "Boston",
+    state: "MA",
+    country: "US",
+    address: "Boston, MA",
+    lat: 42.3601,
+    lng: -71.0589,
+    rating: 4.6,
+    reviews: 169,
+    url: "https://airsculpt.com/our-locations/boston/"
+  },
+  {
+    id: 15,
+    name: "AirSculpt Philadelphia",
+    city: "Philadelphia",
+    state: "PA",
+    country: "US",
+    address: "Philadelphia, PA",
+    lat: 39.9526,
+    lng: -75.1652,
+    rating: 4.7,
+    reviews: 88,
+    url: "https://airsculpt.com/our-locations/philadelphia/"
+  },
+  {
+    id: 16,
+    name: "AirSculpt Deerfield",
+    city: "Deerfield",
+    state: "IL",
+    country: "US",
+    address: "720 Waukegan Rd, Suite 200, Deerfield, IL 60015",
+    lat: 42.1725,
+    lng: -87.8448,
+    rating: 4.7,
+    reviews: 11,
+    url: "https://airsculpt.com/our-locations/chicago-north/"
+  },
+  {
+    id: 17,
+    name: "AirSculpt White Plains",
+    city: "White Plains",
+    state: "NY",
+    country: "US",
+    address: "1 N Broadway, Suite 111, White Plains, NY 10601",
+    lat: 41.0340,
+    lng: -73.7629,
+    rating: 4.7,
+    reviews: 22,
+    url: "https://airsculpt.com/our-locations/white-plains/"
+  },
+  {
+    id: 18,
+    name: "AirSculpt Toronto",
+    city: "Toronto",
+    state: "ON",
+    country: "CA",
+    address: "Toronto, ON, Canada",
+    lat: 43.6740,
+    lng: -79.3940,
+    rating: 4.8,
+    reviews: 64,
+    url: "https://airsculpt.com/our-locations/toronto/"
+  },
+  {
+    id: 19,
+    name: "AirSculpt Austin",
+    city: "Austin",
+    state: "TX",
+    country: "US",
+    address: "6200 Bridgepoint Pkwy, Bldg IV Suite 150, Austin, TX 78730",
+    lat: 30.3885,
+    lng: -97.8563,
+    rating: 4.8,
+    reviews: 67,
+    url: "https://airsculpt.com/our-locations/austin/"
+  },
+  {
+    id: 20,
+    name: "AirSculpt Charlotte",
+    city: "Charlotte",
+    state: "NC",
+    country: "US",
+    address: "Charlotte, NC",
+    lat: 35.2271,
+    lng: -80.8431,
+    rating: 4.7,
+    reviews: 95,
+    url: "https://airsculpt.com/our-locations/charlotte/"
+  },
+  {
+    id: 21,
+    name: "AirSculpt Las Vegas",
+    city: "Las Vegas",
+    state: "NV",
+    country: "US",
+    address: "Las Vegas, NV",
+    lat: 36.1699,
+    lng: -115.1398,
+    rating: 4.7,
+    reviews: 48,
+    url: "https://airsculpt.com/our-locations/las-vegas/"
+  },
+  {
+    id: 22,
+    name: "AirSculpt Salt Lake City",
+    city: "Salt Lake City",
+    state: "UT",
+    country: "US",
+    address: "Salt Lake City, UT",
+    lat: 40.7608,
+    lng: -111.8910,
+    rating: 4.8,
+    reviews: 52,
+    url: "https://airsculpt.com/our-locations/salt-lake-city/"
+  },
+  {
+    id: 23,
+    name: "AirSculpt San Diego",
+    city: "La Jolla",
+    state: "CA",
+    country: "US",
+    address: "La Jolla, CA",
+    lat: 32.8328,
+    lng: -117.2712,
+    rating: 4.8,
+    reviews: 81,
+    url: "https://airsculpt.com/our-locations/san-diego/"
+  },
+  {
+    id: 24,
+    name: "AirSculpt Kansas City",
+    city: "Kansas City",
+    state: "MO",
+    country: "US",
+    address: "Kansas City, MO",
+    lat: 39.0997,
+    lng: -94.5786,
+    rating: 4.7,
+    reviews: 33,
+    url: "https://airsculpt.com/our-locations/kansas-city/"
+  },
+  {
+    id: 25,
+    name: "AirSculpt Columbus",
+    city: "Columbus",
+    state: "OH",
+    country: "US",
+    address: "Columbus, OH",
+    lat: 39.9612,
+    lng: -82.9988,
+    rating: 4.7,
+    reviews: 29,
+    url: "https://airsculpt.com/our-locations/columbus/"
+  },
+  {
+    id: 26,
+    name: "AirSculpt Raleigh",
+    city: "Raleigh",
+    state: "NC",
+    country: "US",
+    address: "Raleigh, NC",
+    lat: 35.7796,
+    lng: -78.6382,
+    rating: 4.8,
+    reviews: 41,
+    url: "https://airsculpt.com/our-locations/raleigh/"
+  },
+  {
+    id: 27,
+    name: "AirSculpt San Jose",
+    city: "San Jose",
+    state: "CA",
+    country: "US",
+    address: "San Jose, CA",
+    lat: 37.3382,
+    lng: -121.8863,
+    rating: 4.7,
+    reviews: 37,
+    url: "https://airsculpt.com/our-locations/san-jose/"
+  },
+  {
+    id: 28,
+    name: "AirSculpt Orange County",
+    city: "Irvine",
+    state: "CA",
+    country: "US",
+    address: "Orange County, CA",
+    lat: 33.6846,
+    lng: -117.8265,
+    rating: 4.8,
+    reviews: 59,
+    url: "https://airsculpt.com/our-locations/orange-county/"
+  },
+  {
+    id: 29,
+    name: "AirSculpt Birmingham (MI)",
+    city: "Birmingham",
+    state: "MI",
+    country: "US",
+    address: "Birmingham, MI",
+    lat: 42.5467,
+    lng: -83.2113,
+    rating: 4.8,
+    reviews: 46,
+    url: "https://airsculpt.com/our-locations/detroit/"
+  },
+  {
+    id: 30,
+    name: "AirSculpt Sacramento",
+    city: "Roseville",
+    state: "CA",
+    country: "US",
+    address: "2270 Douglas Blvd, Suite 115, Roseville, CA 95661",
+    lat: 38.7521,
+    lng: -121.2880,
+    rating: 4.7,
+    reviews: 62,
+    url: "https://airsculpt.com/our-locations/sacramento/"
+  },
+  {
+    id: 31,
+    name: "AirSculpt Orlando",
+    city: "Orlando",
+    state: "FL",
+    country: "US",
+    address: "Orlando, FL",
+    lat: 28.5383,
+    lng: -81.3792,
+    rating: 4.7,
+    reviews: 38,
+    url: "https://airsculpt.com/our-locations/orlando/"
+  }
+];
+
+// ── Color helpers ──────────────────────────────────────────────────────────────
+function ratingColor(r) {
+  if (r >= 5.0) return '#22c55e';
+  if (r >= 4.9) return '#84cc16';
+  if (r >= 4.8) return '#eab308';
+  if (r >= 4.7) return '#f97316';
+  return '#ef4444';
+}
+
+function starsHTML(rating) {
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    if (rating >= i) html += '<span class="star-filled">★</span>';
+    else if (rating >= i - 0.5) html += '<span class="star-half">★</span>';
+    else html += '<span class="star-empty">★</span>';
+  }
+  return html;
+}
+
+// ── Map init ───────────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [40.5, -97],
+  zoom: 4,
+  zoomControl: true
+});
+
+// Dark tile layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// ── Markers ────────────────────────────────────────────────────────────────────
+const markerMap = {};
+const layerGroup = L.layerGroup().addTo(map);
+
+function createMarker(clinic) {
+  const color = ratingColor(clinic.rating);
+  const html = `
+    <div style="
+      width:36px;height:36px;border-radius:50%;
+      background:${color};
+      border:2px solid rgba(255,255,255,0.25);
+      display:flex;align-items:center;justify-content:center;
+      font-size:0.62rem;font-weight:700;color:#fff;
+      box-shadow:0 2px 8px rgba(0,0,0,0.5);
+      cursor:pointer;
+      transition:transform 0.15s;
+    ">${clinic.rating}</div>`;
+
+  const icon = L.divIcon({
+    html,
+    className: '',
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -22]
+  });
+
+  const marker = L.marker([clinic.lat, clinic.lng], { icon }).addTo(layerGroup);
+
+  const popupContent = `
+    <div class="popup-content">
+      <div class="popup-header">
+        <div class="popup-icon" style="background:${color}">${clinic.rating}</div>
+        <div class="popup-title">
+          <div class="popup-name">${clinic.name}</div>
+          <div class="popup-city">${clinic.city}, ${clinic.state}${clinic.country === 'CA' ? ' · <span class="canada-badge">Canada</span>' : ''}</div>
+        </div>
+      </div>
+      <div class="popup-stars">
+        <div class="stars-visual">${starsHTML(clinic.rating)}</div>
+        <span class="popup-rating-num">${clinic.rating}</span>
+        <span class="popup-rating-label">(${clinic.reviews.toLocaleString()} reviews)</span>
+      </div>
+      <div class="popup-address">
+        <span class="popup-address-icon">📍</span>${clinic.address}
+      </div>
+      <a class="popup-btn" href="${clinic.url}" target="_blank">Visit AirSculpt.com →</a>
+    </div>`;
+
+  marker.bindPopup(popupContent, { maxWidth: 280, minWidth: 240 });
+
+  marker.on('click', () => highlightListItem(clinic.id));
+
+  markerMap[clinic.id] = marker;
+  return marker;
+}
+
+clinics.forEach(createMarker);
+
+// ── Sidebar list ───────────────────────────────────────────────────────────────
+let currentFilter = 0;
+let searchTerm = '';
+let highlightedId = null;
+
+function renderList(filtered) {
+  const list = document.getElementById('clinic-list');
+  const count = document.getElementById('clinic-count');
+  const visCount = document.getElementById('visible-count');
+
+  list.innerHTML = '';
+  visCount.textContent = filtered.length;
+
+  if (filtered.length === 0) {
+    list.innerHTML = '<div style="padding:24px 16px;color:#444;font-size:0.85rem;text-align:center;">No clinics match</div>';
+    count.textContent = 'No results';
+    return;
+  }
+
+  count.textContent = `Showing ${filtered.length} of ${clinics.length} locations`;
+
+  filtered.slice().sort((a, b) => b.rating - a.rating || a.city.localeCompare(b.city)).forEach(clinic => {
+    const el = document.createElement('div');
+    el.className = 'clinic-item' + (clinic.id === highlightedId ? ' highlighted' : '');
+    el.dataset.id = clinic.id;
+    const color = ratingColor(clinic.rating);
+    el.innerHTML = `
+      <div class="clinic-pin" style="background:${color}">${clinic.rating}</div>
+      <div class="clinic-info">
+        <div class="clinic-name">${clinic.city}${clinic.country === 'CA' ? ' 🇨🇦' : ''}</div>
+        <div class="clinic-location">${clinic.state} · ${clinic.reviews} reviews</div>
+      </div>
+      <div class="clinic-rating-badge" style="color:${color}">
+        <span class="star-icon">★</span> ${clinic.rating}
+      </div>`;
+    el.addEventListener('click', () => {
+      map.setView([clinic.lat, clinic.lng], 13, { animate: true });
+      markerMap[clinic.id].openPopup();
+      highlightListItem(clinic.id);
+    });
+    list.appendChild(el);
+  });
+}
+
+function highlightListItem(id) {
+  highlightedId = id;
+  document.querySelectorAll('.clinic-item').forEach(el => {
+    el.classList.toggle('highlighted', parseInt(el.dataset.id) === id);
+  });
+  const el = document.querySelector(`.clinic-item[data-id="${id}"]`);
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function getFiltered() {
+  return clinics.filter(c => {
+    const matchesRating = c.rating >= currentFilter;
+    const matchesSearch = searchTerm === '' ||
+      c.name.toLowerCase().includes(searchTerm) ||
+      c.city.toLowerCase().includes(searchTerm) ||
+      c.state.toLowerCase().includes(searchTerm);
+    return matchesRating && matchesSearch;
+  });
+}
+
+function applyFilters() {
+  layerGroup.clearLayers();
+  const filtered = getFiltered();
+  filtered.forEach(c => markerMap[c.id].addTo(layerGroup));
+  renderList(filtered);
+}
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = parseFloat(btn.dataset.min);
+    applyFilters();
+  });
+});
+
+// Search
+document.getElementById('search-input').addEventListener('input', e => {
+  searchTerm = e.target.value.toLowerCase().trim();
+  applyFilters();
+});
+
+// Initial render
+renderList(clinics);
+
+// Re-add all markers to map (already done via createMarker above)
+// Initial list is sorted already
+renderList(clinics.slice().sort((a, b) => b.rating - a.rating || a.city.localeCompare(b.city)));
+</script>
+</body>
+</html>
