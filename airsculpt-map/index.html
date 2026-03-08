@@ -219,15 +219,13 @@
     /* Map */
     .map-wrapper {
       flex: 1;
-      display: flex;
-      flex-direction: column;
       position: relative;
       min-width: 0;
     }
 
     #map {
-      flex: 1;
-      height: 100%;
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: #1a1a1a;
     }
 
@@ -392,7 +390,7 @@
     @media (max-width: 700px) {
       .sidebar { width: 100%; position: absolute; bottom: 0; height: 40vh; z-index: 800; border-right: none; border-top: 1px solid #1f1f1f; }
       .main-layout { flex-direction: column; }
-      #map { flex: 1; }
+      #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
     }
   </style>
 </head>
