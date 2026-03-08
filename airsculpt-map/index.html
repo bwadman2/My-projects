@@ -217,8 +217,17 @@
     }
 
     /* Map */
+    .map-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      min-width: 0;
+    }
+
     #map {
       flex: 1;
+      height: 100%;
       background: #1a1a1a;
     }
 
@@ -419,7 +428,7 @@
     <div class="clinic-list" id="clinic-list"></div>
     <div class="clinic-count" id="clinic-count">Showing all 31 locations</div>
   </div>
-  <div style="position:relative;flex:1;">
+  <div class="map-wrapper">
     <div id="map"></div>
     <div class="map-legend">
       <div class="legend-title">Google Rating</div>
